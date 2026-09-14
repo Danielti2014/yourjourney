@@ -360,6 +360,43 @@ escolha está em [10. Stack](#10-stack).
 3. **Todo artefato gerado aponta para a evidência que o originou.** Um tópico do mapa e
    um flashcard sempre guardam o trecho do material de onde vieram.
 
+### 7.4. A estrutura MVC da API
+
+Uma pasta por funcionalidade. Dentro dela, os papéis do MVC aparecem no nome do
+arquivo:
+
+```
+apps/api/src/
+  <funcionalidade>/
+    <funcionalidade>.controller.ts    recebe a requisição e devolve a resposta
+    <funcionalidade>.service.ts       a regra de negócio
+    <funcionalidade>.repository.ts    a conversa com o banco
+    models/                           a entidade, o M do MVC
+    dto/                              o formato de entrada e de saída
+    <funcionalidade>.module.ts        amarra as peças
+```
+
+O que cada papel pode e não pode fazer:
+
+| Camada | Responsabilidade | O que **não** pode |
+| --- | --- | --- |
+| **Controller** | Ler a requisição, chamar o service, devolver a resposta. | Ter regra de negócio. Um `if` de negócio aqui está no lugar errado. |
+| **Service** | A regra. | Saber o que é HTTP. Não conhece requisição, resposta nem código de status. |
+| **Repository** | Falar com o banco. | Ser contornado. É o único caminho até os dados. |
+| **DTO** | O contrato com quem chama, e a validação da entrada. | Vazar campo interno para o cliente. |
+
+O ganho prático dessa separação é o teste: como o service não conhece HTTP, ele é
+testado criando a classe na mão, sem subir servidor nenhum. É o que torna teste
+unitário barato o suficiente para o time realmente escrever.
+
+**Sobre o V do MVC.** Em MVC clássico, a View é a tela. Aqui a tela é o front-end em
+Next.js, que é outra aplicação. Então **nesta API não existe View**: o que sai é JSON,
+e o papel mais próximo de View é o DTO de saída, porque é ele que decide quais campos
+o cliente enxerga. Isso não é desvio do padrão, é como o MVC se aplica a uma API.
+
+Um módulo que não precisa de uma camada simplesmente não a cria. O módulo de saúde,
+por exemplo, não tem model nem repository, porque não guarda nada.
+
 ---
 
 ## 8. Fluxo de ingestão de material
@@ -537,7 +574,7 @@ ao lado.
 | Gerenciador de pacotes | **npm** | Decidido. Já vem com o Node, e ninguém precisa instalar nada a mais. |
 | Banco relacional | **PostgreSQL 17** | Decidido. |
 | Banco vetorial | **pgvector, dentro do mesmo PostgreSQL** | Decidido. pgvector é uma extensão que acrescenta ao Postgres o tipo `vector` e os operadores de distância. Escolhido por valor didático: o embedding vira uma **coluna** que o aluno consegue ver e consultar com SQL, em vez de ficar escondido atrás da API de outro sistema. De quebra, economiza um contêiner, um cliente e um conjunto de credenciais. **Risco conhecido:** se a avaliação exigir dois sistemas distintos de banco, isto precisa virar um banco vetorial separado — por isso o acesso a vetores fica atrás de uma interface própria desde o começo. |
-| ORM / acesso a dados | `<A DEFINIR>` | Próxima decisão a tomar. Precisa suportar migrações versionadas e conviver com o tipo `vector` do pgvector (consulta de similaridade costuma sair em SQL cru, então o ORM não pode atrapalhar isso). |
+| ORM / acesso a dados | **TypeORM 1** | Decidido. Atendia os dois critérios (migrações versionadas e SQL cru liberado para a busca vetorial) e, entre as opções, é a que declara suporte oficial ao NestJS 12. Pesou também que a entidade é uma classe, o que dá um `Model` de verdade para a estrutura MVC descrita em [7.4](#74-a-estrutura-mvc-da-api), em vez de o modelo morar num arquivo de esquema à parte. |
 | Broker de fila | `<A DEFINIR>` | Suportar retentativa, fila de mensagens mortas e alguma forma de inspecionar o que está na fila. |
 | Armazenamento de arquivos | `<A DEFINIR>` | Rodar local em contêiner e ter cliente estável na linguagem escolhida. |
 | Provedor de LLM e embeddings | `<A DEFINIR>` | Custo por material processado dentro do orçamento do trabalho, limite de contexto suficiente e modelo de embedding com boa qualidade em português. |
@@ -761,7 +798,7 @@ make up
 > Ele existe para o **editor**: sem `node_modules` na sua máquina, o VS Code não acha os
 > tipos e sublinha o arquivo inteiro de vermelho, mesmo com o projeto funcionando.
 
-**`make up`** sobe o projeto, em três etapas:
+**`make up`** sobe o projeto, em quatro etapas:
 
 1. **Confere os pré-requisitos** (`scripts/preflight.sh`): Docker instalado, Docker
    rodando, plugin do compose presente, `.env` no lugar. Falhando aqui, você recebe uma
@@ -769,6 +806,16 @@ make up
 2. **Constrói as imagens e sobe os contêineres.** Na primeira vez isto leva alguns
    minutos, porque as imagens estão sendo baixadas e construídas. Depois é rápido.
 3. **Espera cada serviço responder** (`scripts/wait-for.sh`).
+4. **Aplica as migrações pendentes do banco.**
+
+> **Migração** é um script versionado que cria ou altera tabelas. Elas ficam no
+> repositório e são aplicadas em ordem, então o banco de todo mundo fica igual. Sem
+> isso, cada pessoa criaria tabela na mão do seu jeito e os bancos divergiriam em uma
+> semana.
+>
+> O `make up` aplica sozinho para o dia a dia não ter atrito. Quando alguém trouxer
+> uma migração nova na `main`, basta subir o projeto e ela entra. Para aplicar sem
+> subir nada, existe o `make migrate`.
 
 > Por que a etapa 3 existe: o `docker compose up` termina quando os contêineres **foram
 > iniciados**, não quando eles já estão respondendo. A API leva alguns segundos a mais
@@ -824,6 +871,9 @@ Os três serviços devem aparecer como `Up`, e `postgres` e `api` com `(healthy)
 | `make logs` | Acompanha os logs de todos |
 | `make logs-api` | Acompanha só os da API |
 | `make health` | Pergunta à API se ela está viva |
+| `make migrate` | Aplica as migrações pendentes |
+| `make migrate-status` | Mostra quais migrações já foram aplicadas |
+| `make migrate-revert` | Desfaz a última migração |
 | `make test` | Roda os testes da API |
 | `make lint` | Confere o estilo do código nos dois apps |
 | `make verify` | Lint e testes juntos — o mesmo que o CI vai rodar |
@@ -1243,15 +1293,19 @@ yourjourney/
 │   │   ├── src/
 │   │   │   ├── main.ts             # ponto de entrada: porta, CORS
 │   │   │   ├── app.module.ts       # módulo raiz, onde os outros são registrados
-│   │   │   └── health/             # primeiro módulo: GET /health
+│   │   │   ├── config/             # o único lugar que lê variável de ambiente
+│   │   │   ├── database/           # conexão e migrações
+│   │   │   │   └── migrations/     # scripts versionados que criam e alteram tabelas
+│   │   │   └── health/             # módulo de exemplo da estrutura MVC
+│   │   │       ├── health.controller.ts
+│   │   │       ├── health.service.ts
+│   │   │       ├── dto/
+│   │   │       └── health.module.ts
 │   │   └── test/                   # testes de ponta a ponta da API
 │   │
 │   └── web/                        # front-end Next.js
 │       ├── Dockerfile
 │       └── src/app/                # App Router: uma pasta por rota
-│
-├── infra/
-│   └── postgres/init/              # SQL que roda na primeira criação do banco
 │
 ├── scripts/
 │   ├── preflight.sh                # confere Docker, compose e .env antes de subir
@@ -1462,6 +1516,13 @@ documento paralelo. Issue aberta é trabalho reconhecido; o que não está lá, 
 | **LLM** | *Large Language Model*. Modelo de linguagem que recebe um texto e gera uma continuação. |
 | **Mapa de conhecimento** | Lista dos tópicos que um material cobre, comparada com a taxonomia canônica, com evidência por tópico. |
 | **Migração** | Script versionado que cria ou altera tabelas do banco. |
+| **Controller** | A camada que recebe a requisição e devolve a resposta. Não tem regra de negócio. |
+| **DTO** | O formato de entrada e de saída de uma rota. Numa API, é o papel mais próximo da View do MVC. |
+| **Entidade** | A classe que representa uma tabela do banco. É o Model do MVC. |
+| **MVC** | Model, View, Controller. A divisão de responsabilidades que a API segue. Ver [7.4](#74-a-estrutura-mvc-da-api). |
+| **ORM** | Biblioteca que traduz entre as tabelas do banco e os objetos do código. Aqui, TypeORM. |
+| **Repository** | A camada que fala com o banco. É o único caminho até os dados. |
+| **Service** | A camada que carrega a regra de negócio. Não sabe o que é HTTP, e por isso é barata de testar. |
 | **MVP** | *Minimum Viable Product*. A menor versão que já resolve o problema de ponta a ponta. |
 | **OpenAPI** | Formato padrão para descrever uma API HTTP. |
 | **Pipeline** | Sequência de etapas automáticas executadas a cada alteração do código. |
