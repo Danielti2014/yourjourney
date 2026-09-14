@@ -1,0 +1,73 @@
+.main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.titulo {
+  font-size: 2rem;
+  margin: 0 0 0.5rem;
+}
+
+.subtitulo {
+  margin: 0 0 2.5rem;
+  color: var(--texto-suave);
+}
+
+.cartao {
+  border: 1px solid var(--borda);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.cartaoTitulo {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-suave);
+  margin: 0 0 0.75rem;
+}
+
+.ok,
+.falhou {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ok {
+  color: var(--verde);
+}
+
+.falhou {
+  color: var(--vermelho);
+}
+
+.lista {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+}
+
+.lista dt {
+  color: var(--texto-suave);
+}
+
+.lista dd {
+  margin: 0;
+}
+
+.ajuda {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--texto-suave);
+  line-height: 1.6;
+}
+
+.ajuda code {
+  background: var(--fundo-codigo);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
