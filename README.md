@@ -1475,6 +1475,7 @@ Tudo versionado neste repositório, como pede o requisito 9 da avaliação.
 | Pesquisa de mercado | `docs/pesquisa-de-mercado.md` | Levantamento das soluções existentes, o que cada uma cobre, onde este projeto se diferencia e para quem. |
 | Especificação da API | `docs/openapi.yaml` | Contrato completo das rotas, em OpenAPI. |
 | Decisões de arquitetura | `docs/adr/` | Um arquivo por decisão: contexto, opções, escolha e consequências. É aqui que cada `<A DEFINIR>` deste README vai morrer. |
+| Autenticação | `docs/autenticacao.md` | Como funcionam senha, confirmação de e-mail, JWT, refresh token e cookies neste projeto. Leitura obrigatória antes de pegar issue de autenticação. |
 | Runbooks | `docs/runbooks/` | Procedimentos para quando algo quebra: fila entupida, job preso, rollback, webhook duplicado. |
 | Diagramas | Este README e `docs/diagramas/` | Arquitetura, ingestão, CI/CD e modelo de dados. |
 
