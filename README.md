@@ -999,13 +999,15 @@ verificar o comportamento sem espiar o miolo do código. Testar o miolo prende o
 detalhe da implementação, e aí qualquer refatoração quebra tudo sem que nada esteja
 errado de verdade.
 
-| Tipo de teste | O que verifica | Onde |
+**A regra do time é uma só: teste unitário, no backend.** Nada de teste de ponta a ponta,
+nada de teste no front-end. Decisão deliberada, tomada pelo peso do prazo e pelo nível do
+time: um tipo de teste só é um tipo para aprender a fazer bem, em vez de quatro feitos
+pela metade.
+
+| O que é | O que verifica | Onde |
 | --- | --- | --- |
-| **Unitário** | Regras puras: cálculo de débito de créditos, distribuição de horas no roadmap, corte do texto em trechos, priorização de tópicos. | Junto do código |
-| **Integração** | Acesso a banco real em contêiner, publicação e consumo na fila, gravação e busca no banco vetorial. | `tests/integracao/` |
-| **Contrato** | O formato do que recebemos de autenticação, pagamento e LLM. Roda contra duplos, não contra o serviço real. | `tests/contrato/` |
-| **Ponta a ponta** | O loop inteiro: envia um PDF de fixture, espera, confere que mapa, roadmap e flashcards nasceram. | `tests/e2e/` |
-| **Qualidade do RAG** | Se a recuperação traz os trechos certos e o mapa acerta os tópicos. | `tests/rag/` |
+| **Teste unitário** | Regras de negócio do backend: débito de créditos, validação de objetivo, transição de estado de material, distribuição de horas no roadmap, corte do texto em trechos. É o que toda issue de backend exige nos critérios de aceite. | Junto do código, em `*.spec.ts` |
+| **Medição de qualidade do RAG** | Se a recuperação traz os trechos certos e o mapa acerta os tópicos. **Não é teste de issue**: é uma medição feita à mão contra material que o time rotulou, rodada sob comando, fora do CI. | `tests/rag/` |
 
 ### 15.1. Como testar algo que usa LLM
 
@@ -1024,26 +1026,32 @@ e não antes, porque estabelecer meta sem linha de base é inventar número.
 
 ### 15.2. O que o time decidiu não testar
 
+- **Front-end.** Nenhuma camada dele, nem componente, nem tela. As issues de front não
+  pedem teste.
+- **Ponta a ponta.** Nada que suba a aplicação inteira e percorra o fluxo do usuário.
 - A qualidade interna do modelo do provedor. Não é nosso código.
-- Os serviços externos em si. Testamos nosso lado do contrato.
-- Detalhes visuais do front-end. O MVP não tem teste de regressão visual.
+- Os serviços externos em si.
+
+> Vale saber o que se perde, para a decisão ser consciente: teste de ponta a ponta pega
+> erro de ligação que o unitário não pega, como módulo não registrado ou rota não
+> mapeada. Sem ele, esse tipo de defeito aparece quando alguém abre o navegador. Foi
+> julgado um preço aceitável para o time escrever bem um tipo de teste, em vez de mal
+> quatro.
 
 ### 15.3. Como rodar
 
 ```bash
-make test      # testes da API
+make test      # testes unitários da API
 make lint      # estilo do código nos dois apps
 make verify    # os dois acima, que é o que o CI vai rodar
 ```
 
-Os testes da API rodam com **Vitest**, que é o que o NestJS 12 já traz. Rodar `make
-verify` antes de abrir um Pull Request evita a ida e volta de descobrir o problema pelo
-CI.
+Os testes rodam com **Vitest**, que é o que o NestJS 12 já traz. Rodar `make verify`
+antes de abrir um Pull Request evita a ida e volta de descobrir o problema pelo CI.
 
-O que existe hoje: três testes unitários do `HealthController` e um teste de ponta a
-ponta que sobe a aplicação e confere que `GET /health` responde `200`. É pouco, e é
-proposital — são os testes das únicas coisas que existem. A cobertura cresce junto com
-cada fatia, nas fronteiras da tabela acima.
+O que existe hoje: os testes unitários do módulo de saúde e do módulo de configuração. É
+pouco, e é proposital — são os testes das únicas coisas que existem. A cobertura cresce
+junto com cada fatia.
 
 ---
 
@@ -1301,7 +1309,6 @@ yourjourney/
 │   │   │       ├── health.service.ts
 │   │   │       ├── dto/
 │   │   │       └── health.module.ts
-│   │   └── test/                   # testes de ponta a ponta da API
 │   │
 │   └── web/                        # front-end Next.js
 │       ├── Dockerfile
