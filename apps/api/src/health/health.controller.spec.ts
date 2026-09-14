@@ -1,28 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthController } from './health.controller.js';
+import { HealthService } from './health.service.js';
 
 describe('HealthController', () => {
   let controller: HealthController;
 
+  const respostaDoService = {
+    status: 'ok' as const,
+    service: 'servico-de-mentira',
+    uptimeSeconds: 42,
+    timestamp: '2026-01-01T00:00:00.000Z',
+  };
+
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const modulo: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
+      providers: [
+        { provide: HealthService, useValue: { verificar: () => respostaDoService } },
+      ],
     }).compile();
 
-    controller = module.get<HealthController>(HealthController);
+    controller = modulo.get<HealthController>(HealthController);
   });
 
-  it('responde com status ok', () => {
-    expect(controller.check().status).toBe('ok');
-  });
-
-  it('identifica qual servico respondeu', () => {
-    expect(controller.check().service).toBe('yourjourney-api');
-  });
-
-  it('devolve um timestamp valido em ISO 8601', () => {
-    const { timestamp } = controller.check();
-
-    expect(Number.isNaN(Date.parse(timestamp))).toBe(false);
+  it('devolve exatamente o que o service respondeu, sem alterar nada', () => {
+    expect(controller.verificar()).toEqual(respostaDoService);
   });
 });

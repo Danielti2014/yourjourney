@@ -17,7 +17,7 @@ WEB_PORT ?= 3000
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart reset ps logs logs-api logs-web logs-db \
-        health test lint verify sh-api sh-web psql
+        health migrate migrate-revert migrate-status test lint verify sh-api sh-web psql
 
 help: ## Mostra esta lista
 	@echo "Your Journey -- comandos disponiveis:"
@@ -44,6 +44,10 @@ up: ## Sobe todos os servicos e espera eles responderem
 	@bash scripts/wait-for.sh http://localhost:$(API_PORT)/health "a API" 120
 	@bash scripts/wait-for.sh http://localhost:$(WEB_PORT) "o front-end" 120
 	@echo
+	@echo
+	@echo "Aplicando migracoes do banco..."
+	@set -o pipefail; $(COMPOSE) exec -T api npm run migration:run --silent 2>&1 | sed '/^query:/d'
+	@echo
 	@echo "Tudo no ar:"
 	@echo "  Front-end  http://localhost:$(WEB_PORT)"
 	@echo "  API        http://localhost:$(API_PORT)/health"
@@ -62,6 +66,15 @@ reset: ## Para os servicos e APAGA os dados dos bancos
 	@read -p "Digite 'apagar' para confirmar: " r; [ "$$r" = "apagar" ] || { echo "Cancelado."; exit 1; }
 	$(COMPOSE) down -v
 	@echo "Bancos apagados. Rode 'make up' para comecar do zero."
+
+migrate: ## Aplica as migracoes pendentes no banco
+	@set -o pipefail; $(COMPOSE) exec -T api npm run migration:run --silent 2>&1 | sed '/^query:/d'
+
+migrate-revert: ## Desfaz a ultima migracao aplicada
+	@$(COMPOSE) exec -T api npm run migration:revert
+
+migrate-status: ## Mostra quais migracoes ja foram aplicadas
+	@$(COMPOSE) exec -T api npm run migration:show
 
 ps: ## Mostra o estado de cada servico
 	$(COMPOSE) ps
