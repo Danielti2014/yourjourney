@@ -1,21 +1,19 @@
 import { Controller, Get } from '@nestjs/common';
+import { HealthResponseDto } from './dto/health-response.dto.js';
+import { HealthService } from './health.service.js';
 
-export type HealthStatus = {
-  status: 'ok';
-  service: string;
-  uptimeSeconds: number;
-  timestamp: string;
-};
-
+/**
+ * Recebe a requisição e devolve a resposta. Nada mais.
+ *
+ * Se aparecer um `if` de regra de negócio aqui, ele está no lugar errado e
+ * pertence ao service.
+ */
 @Controller('health')
 export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
   @Get()
-  check(): HealthStatus {
-    return {
-      status: 'ok',
-      service: 'yourjourney-api',
-      uptimeSeconds: Math.floor(process.uptime()),
-      timestamp: new Date().toISOString(),
-    };
+  verificar(): HealthResponseDto {
+    return this.healthService.verificar();
   }
 }

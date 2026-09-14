@@ -2,14 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import { HealthModule } from '../src/health/health.module.js';
 
+/**
+ * Sobe a aplicação de verdade e bate na rota pela rede, que é o que o teste
+ * unitário não faz.
+ *
+ * Importa o HealthModule, e não o AppModule inteiro, porque o AppModule já
+ * inclui o banco e exigiria um PostgreSQL no ar só para testar saúde. Quando
+ * houver módulo que dependa do banco, a suíte de ponta a ponta ganha um banco
+ * de verdade, e isso está previsto na issue do CI.
+ */
 describe('Health (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [HealthModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -26,6 +35,7 @@ describe('Health (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.status).toBe('ok');
+        expect(body.service).toBe('yourjourney-api');
       });
   });
 });
