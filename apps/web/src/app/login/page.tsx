@@ -2,8 +2,27 @@
 
 import Link from 'next/link';
 import styles from './page.module.css';
+import { z } from 'zod';
+import { useState } from 'react';
+import { login } from '../../api/login';
+
+
+const loginSchema = z.object({
+  email: z.string().email('Digite um e-mail válido'),
+  senha: z.string().min(1, 'Digite sua senha'),
+});
 
 export default function Login() {
+
+  const [errors, setErrors] = useState<{
+  email?: string;
+  senha?: string;
+}>({});
+  const [loading, setLoading] = useState(false);
+
+  const [loginError, setLoginError] = useState('');
+
+
   return (
     <main className={styles.container}>
       {/* Lado Esquerdo - Verde escuro institucional */}
@@ -95,16 +114,90 @@ export default function Login() {
           <h2 className={styles.formTitle}>Entrar</h2>
           <p className={styles.formSubtitle}>Bom te ver de volta.</p>
 
-          <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
+
+{loginError && (
+  <p className={styles.error} role="alert">
+    {loginError}
+  </p>
+)}
+
+          <form  className={styles.form}
+            noValidate
+            onSubmit={async(e) => {
+            e.preventDefault();
+
+
+
+    const formData = new FormData(e.currentTarget);
+
+    const dados = {
+      email: formData.get('email'),
+      senha: formData.get('senha'),
+    };
+
+    const resultado = loginSchema.safeParse(dados);
+
+    if (!resultado.success) {
+    const novosErros: {
+    email?: string;
+    senha?: string;
+  } = {};
+
+  resultado.error.issues.forEach((erro) => {
+    const campo = erro.path[0];
+
+    if (campo === 'email' || campo === 'senha') {
+      novosErros[campo] = erro.message;
+    }
+  });
+
+  setErrors(novosErros);
+  return;
+}
+setLoading(true);
+const resposta = await login(resultado.data.email, resultado.data.senha);
+
+if (resposta.status === 401) {
+  setLoginError('E-mail ou senha incorreta.');
+  setLoading(false);
+  return;
+}
+
+if (resposta.status === 500) {
+  setLoginError('Ocorreu um erro. Tente novamente.');
+  setLoading(false);
+  return;
+}
+
+if (resposta.status === 403) {
+  window.location.href = '/confirmar-email';
+  return;
+}
+
+if (resposta.status === 200 && resposta.token) {
+  localStorage.setItem('token', resposta.token);
+  window.location.href = '/';
+  return;
+}
+
+
+    
+  }}>
+
+            
             <div className={styles.inputGroup}>
               <label htmlFor="email">E-mail</label>
               <input
                 id="email"
+                name='email'
                 type="email"
                 placeholder="ana.souza@gmail.com"
                 defaultValue="ana.souza@gmail.com"
                 required
+                aria-invalid={!!errors.email}
+                aria-describedby="email-erro"
               />
+              <p id="email-error" className={styles.error} role="alert">{errors.email}</p>
             </div>
 
             <div className={styles.inputGroup}>
@@ -116,14 +209,24 @@ export default function Login() {
               </div>
               <input
                 id="senha"
+                name='senha'
                 type="password"
                 placeholder="Sua senha"
                 required
+                aria-invalid={!!errors.senha}
+                aria-describedby="senha-erro"
               />
+              {errors.senha && (
+              <p id="senha-error" className={styles.error} role="alert">{errors.senha}</p>
+              )}
             </div>
 
-            <button type="submit" className={styles.submitBtn}>
-              Entrar
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={loading}
+              >
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
 
             <p className={styles.signupText}>

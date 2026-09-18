@@ -204,3 +204,10 @@
     padding: 40px 24px;
   }
 }
+
+
+.error {
+  color: red;
+  margin: 0;
+  font-size: 14px;
+}
