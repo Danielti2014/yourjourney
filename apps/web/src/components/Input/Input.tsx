@@ -21,7 +21,9 @@ export function Input({ label, hint, error, id, ...props }: InputProps) {
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
       />
-      {hint && <span id={hintId}>{hint}</span>}
+      <span id={hintId} className={styles.hint}>
+        {hint ?? ''}
+      </span>
       <span
         id={errorId}
         className={styles.error}
