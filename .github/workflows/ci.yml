@@ -89,13 +89,37 @@ jobs:
         run: npm run build
 
   # ============================================================================
-  # 3. Deploy (Executado apenas na branch main e se os jobs anteriores passarem)
+  # 3. Smoke test (sobe o projeto de verdade, migra e confere que responde)
+  # ============================================================================
+  smoke:
+    name: Smoke - sobe, migra e responde
+    runs-on: ubuntu-latest
+    # So roda depois que lint, teste e build passaram. Nao adianta subir o
+    # projeto se o codigo nem compila.
+    needs: [build_and_test_api, build_and_test_frontend]
+    # Generoso de proposito: no CI o build e sempre frio e leva alguns minutos.
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Sobe o compose inteiro, aplica as migracoes, confere que toda entidade
+      # tem migracao correspondente, e que /health responde.
+      #
+      # Pega a classe de erro que lint, teste unitario e build nao pegam:
+      # modulo nao registrado, rota que estoura, entidade sem tabela.
+      - name: Sobe o projeto, aplica as migracoes e confere a saude
+        run: make smoke
+
+  # ============================================================================
+  # 4. Deploy (Executado apenas na branch main e se os jobs anteriores passarem)
   # ============================================================================
   deploy:
     name: Deploy Application
     runs-on: ubuntu-latest
     # Aguarda a validação com sucesso tanto da API quanto do Frontend
-    needs: [build_and_test_api, build_and_test_frontend]
+    needs: [build_and_test_api, build_and_test_frontend, smoke]
     # Executa apenas se o evento for um push na branch main (não roda em PRs)
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
